@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+pydantic
+httpx
+google-cloud-aiplatform
+tenacity
+pytest
+pytest-asyncio
