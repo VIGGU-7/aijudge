@@ -5,8 +5,8 @@ import { LayoutDashboard, Settings, Mic, Bot, Trophy, Video, LogOut } from "luci
 const navItems = [
   { path: "/p/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { path: "/p/setup", label: "Project Setup", icon: Settings },
+  { path: "/p/video-viva", label: "Demo Drop", icon: Video },
   { path: "/p/viva", label: "AI Viva", icon: Mic },
-  { path: "/p/video-viva", label: "Video Viva", icon: Video },
   { path: "/p/mentor", label: "AI Mentor", icon: Bot },
   { path: "/p/results", label: "My Results", icon: Trophy },
 ];

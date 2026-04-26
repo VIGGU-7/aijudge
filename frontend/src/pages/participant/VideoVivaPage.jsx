@@ -48,7 +48,7 @@ export default function VideoVivaPage() {
         {/* Header */}
         <div className="animate-enter" style={{ paddingBottom: 18, borderBottom: "1px solid #e8e8e8" }}>
           <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em", display: "flex", alignItems: "center", gap: 10 }}>
-            <Video size={24} /> Video Viva
+            <Video size={24} /> Demo Drop
           </h1>
           <p style={{ color: "#999", fontSize: 13, marginTop: 4 }}>
             Upload your hackathon explanation video — the AI will analyze it and generate a live viva session.
