@@ -2,22 +2,51 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import OrganizerLayout from "../../components/OrganizerLayout";
 import { teamApi } from "../../lib/api";
-import { Users, GitBranch, ArrowRight } from "lucide-react";
+import { Search, Users, GitBranch, ArrowRight } from "lucide-react";
 
 export default function TeamOverviewPage() {
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    (async () => { try { setTeams((await teamApi.list()).data); } catch {} setLoading(false); })();
-  }, []);
+    const fetchTeams = async () => {
+      setLoading(true);
+      try {
+        if (searchQuery.trim()) {
+          setTeams((await teamApi.search(searchQuery)).data);
+        } else {
+          setTeams((await teamApi.list()).data);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    const timer = setTimeout(fetchTeams, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   return (
     <OrganizerLayout>
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-        <div className="animate-enter" style={{ paddingBottom: 20, borderBottom: "1px solid #e8e8e8" }}>
-          <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em" }}>All Teams</h1>
-          <p style={{ color: "#999", fontSize: 14, marginTop: 4 }}>Browse registered teams and access analysis</p>
+        <div className="animate-enter" style={{ paddingBottom: 20, borderBottom: "1px solid #e8e8e8", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+          <div>
+            <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em" }}>All Teams</h1>
+            <p style={{ color: "#999", fontSize: 14, marginTop: 4 }}>Browse registered teams and access analysis</p>
+          </div>
+          <div style={{ position: "relative", width: 280 }}>
+            <Search size={16} color="#999" style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)" }} />
+            <input
+              type="text"
+              placeholder="Search teams by name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="input-field"
+              style={{ paddingLeft: 40, width: "100%" }}
+            />
+          </div>
         </div>
 
         {loading ? (

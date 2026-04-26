@@ -84,6 +84,7 @@ async def create_indexes():
     await db.viva_sessions.create_index([("team_id", 1), ("created_at", -1)])
     await db.context_profiles.create_index("team_id", unique=True)
     await db.evaluations.create_index([("hackathon_id", 1), ("team_id", 1)])
+    await db.telemetry_logs.create_index("team_id")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -298,6 +299,17 @@ async def get_my_team(request: Request, hackathon_id: Optional[str] = None):
     t = await db.teams.find_one(q)
     if not t: return None
     t["id"] = str(t["_id"]); del t["_id"]; return t
+
+@api.get("/teams/search")
+async def search_teams(query: str = ""):
+    if not query:
+        return []
+    out = []
+    async for t in db.teams.find({"name": {"$regex": query, "$options": "i"}}):
+        t["id"] = str(t["_id"])
+        del t["_id"]
+        out.append(t)
+    return out
 
 @api.get("/teams")
 async def list_teams(hackathon_id: Optional[str] = None):
@@ -889,6 +901,54 @@ async def hackathon_report(hackathon_id: str, request: Request):
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{safe_name}_report.pdf"'}
     )
+
+# ── EXTENSION & TELEMETRY ────────────────────────────────────────
+class TelemetryData(BaseModel):
+    team_id: str
+    extension_key: str
+    event_type: str
+    details: Dict[str, Any]
+
+class ExtensionLinkRequest(BaseModel):
+    team_name: str
+
+@api.post("/extension/link")
+async def link_extension(data: ExtensionLinkRequest):
+    team = await db.teams.find_one({"name": {"$regex": f"^{data.team_name}$", "$options": "i"}})
+    if not team:
+        raise HTTPException(404, "Team not found")
+    
+    if "extension_key" not in team:
+        ext_key = str(uuid.uuid4())
+        await db.teams.update_one({"_id": team["_id"]}, {"$set": {"extension_key": ext_key}})
+        team["extension_key"] = ext_key
+
+    return {"team_id": str(team["_id"]), "team_name": team["name"], "extension_key": team["extension_key"]}
+
+@api.post("/extension/telemetry")
+async def receive_telemetry(data: TelemetryData):
+    team = await db.teams.find_one({"_id": ObjectId(data.team_id), "extension_key": data.extension_key})
+    if not team:
+        raise HTTPException(401, "Invalid team or extension key")
+    
+    log_doc = {
+        "team_id": data.team_id,
+        "event_type": data.event_type,
+        "details": data.details,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+    await db.telemetry_logs.insert_one(log_doc)
+    return {"message": "Telemetry received"}
+
+@api.get("/extension/telemetry/{tid}")
+async def get_team_telemetry(tid: str, request: Request):
+    await get_current_user(request)
+    out = []
+    async for log in db.telemetry_logs.find({"team_id": tid}).sort("timestamp", -1):
+        log["id"] = str(log["_id"])
+        del log["_id"]
+        out.append(log)
+    return out
 
 # ── STATS ────────────────────────────────────────────────────────
 @api.get("/stats/dashboard")

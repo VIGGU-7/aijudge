@@ -26,6 +26,7 @@ export const teamApi = {
   join: (id) => axios.post(`${API}/teams/${id}/join`),
   getMy: () => axios.get(`${API}/teams/my/current`),
   addMember: (id, email) => axios.post(`${API}/teams/${id}/add-member`, { email }),
+  search: (query) => axios.get(`${API}/teams/search?query=${encodeURIComponent(query)}`),
 };
 
 export const projectApi = {
@@ -88,4 +89,10 @@ export const plagiarismApi = {
 export const reportApi = {
   participantPdf: (userId) => axios.get(`${API}/report/participant/${userId}`, { responseType: "blob", timeout: 60000 }),
   hackathonPdf: (hackathonId) => axios.get(`${API}/report/hackathon/${hackathonId}`, { responseType: "blob", timeout: 60000 }),
+};
+
+export const extensionApi = {
+  link: (teamName) => axios.post(`${API}/extension/link`, { team_name: teamName }),
+  sendTelemetry: (data) => axios.post(`${API}/extension/telemetry`, data),
+  getTelemetry: (tid) => axios.get(`${API}/extension/telemetry/${tid}`),
 };

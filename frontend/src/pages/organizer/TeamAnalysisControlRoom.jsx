@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import OrganizerLayout from "../../components/OrganizerLayout";
-import { teamApi, projectApi, vivaApi, evalApi } from "../../lib/api";
+import { teamApi, projectApi, vivaApi, evalApi, extensionApi } from "../../lib/api";
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
-import { Search, AlertTriangle, MessageCircle } from "lucide-react";
+import { Search, AlertTriangle, MessageCircle, Activity, Edit, CheckCircle } from "lucide-react";
 
 function ScoreRing({ score, label, size = 80 }) {
   const color = score >= 80 ? "#22c55e" : score >= 60 ? "#f59e0b" : "#ef4444";
@@ -38,20 +38,33 @@ export default function TeamAnalysisControlRoom() {
   const [profile, setProfile] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [evaluations, setEvaluations] = useState([]);
+  const [telemetry, setTelemetry] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [evalScores, setEvalScores] = useState({
+    innovation: 50,
+    complexity: 50,
+    impact: 50,
+    originality: 50,
+    execution: 50,
+    presentation: 50,
+  });
+  const [evalNotes, setEvalNotes] = useState("");
+  const [submittingEval, setSubmittingEval] = useState(false);
 
   useEffect(() => {
     if (!teamId) return;
     (async () => {
       try {
-        const [tRes, pRes, sRes, eRes] = await Promise.all([
+        const [tRes, pRes, sRes, eRes, telRes] = await Promise.all([
           teamApi.get(teamId), projectApi.getProfile(teamId),
           vivaApi.getSessions(teamId), evalApi.getForTeam(teamId),
+          extensionApi.getTelemetry(teamId).catch(() => ({ data: [] }))
         ]);
         setTeam(tRes.data);
         setProfile(pRes.data?.profile || null);
         setSessions(sRes.data || []);
         setEvaluations(eRes.data || []);
+        setTelemetry(telRes.data || []);
       } catch {}
       setLoading(false);
     })();
@@ -90,6 +103,26 @@ export default function TeamAnalysisControlRoom() {
 
   const totalQuestions = sessions.reduce((sum, s) => sum + (s.questions?.length || 0), 0);
   const answeredQuestions = sessions.reduce((sum, s) => sum + (s.questions?.filter(q => q.answer)?.length || 0), 0);
+
+  const submitEvaluation = async () => {
+    if (!team) return;
+    setSubmittingEval(true);
+    try {
+      const res = await evalApi.create({
+        team_id: teamId,
+        hackathon_id: team.hackathon_id,
+        scores: evalScores,
+        notes: evalNotes
+      });
+      setEvaluations(prev => [res.data, ...prev]);
+      setEvalNotes("");
+    } catch (e) {
+      console.error(e);
+      alert("Failed to submit evaluation");
+    } finally {
+      setSubmittingEval(false);
+    }
+  };
 
   return (
     <OrganizerLayout>
@@ -267,6 +300,110 @@ export default function TeamAnalysisControlRoom() {
                 ))}
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Telemetry Logs */}
+        <div className="card-grid animate-enter" style={{ overflow: "hidden", borderLeft: telemetry.length > 0 ? "3px solid #ef4444" : "none" }}>
+          <div style={{ padding: "12px 18px", borderBottom: "1px solid #e8e8e8", display: "flex", alignItems: "center", gap: 6 }}>
+            <Activity size={14} color={telemetry.length > 0 ? "#ef4444" : "#999"} />
+            <span style={{ fontSize: 13, fontWeight: 600, color: telemetry.length > 0 ? "#ef4444" : "#111" }}>Malpractice & Telemetry Logs</span>
+          </div>
+          <div style={{ padding: 14 }}>
+            {telemetry.length === 0 ? (
+              <p style={{ color: "#bbb", textAlign: "center", padding: 28 }}>No malpractices detected</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {telemetry.map((log) => (
+                  <div key={log.id} style={{ padding: 12, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "#dc2626" }}>{log.event_type}</span>
+                      <span className="badge badge-warning" style={{ fontSize: 10 }}>{new Date(log.timestamp).toLocaleString()}</span>
+                    </div>
+                    <pre style={{ fontSize: 11, fontFamily: "JetBrains Mono", color: "#7f1d1d", whiteSpace: "pre-wrap", margin: 0 }}>
+                      {JSON.stringify(log.details, null, 2)}
+                    </pre>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Manual Organizer Evaluation */}
+        <div className="card-grid animate-enter" style={{ overflow: "hidden", borderLeft: "3px solid #22c55e" }}>
+          <div style={{ padding: "12px 18px", borderBottom: "1px solid #e8e8e8", display: "flex", alignItems: "center", gap: 6 }}>
+            <Edit size={14} color="#22c55e" />
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#16a34a" }}>Manual Organizer Evaluation</span>
+          </div>
+          <div style={{ padding: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 20 }}>
+              {Object.keys(evalScores).map((criteria) => (
+                <div key={criteria}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                    <label style={{ fontSize: 13, fontWeight: 600, textTransform: "capitalize", color: "#333" }}>{criteria}</label>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: scoreColor(evalScores[criteria]) }}>{evalScores[criteria]}/100</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={evalScores[criteria]}
+                    onChange={(e) => setEvalScores(prev => ({ ...prev, [criteria]: parseInt(e.target.value) }))}
+                    style={{ width: "100%", accentColor: scoreColor(evalScores[criteria]) }}
+                  />
+                </div>
+              ))}
+            </div>
+            
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: "#333", display: "block", marginBottom: 8 }}>Judging Notes (Optional)</label>
+              <textarea
+                value={evalNotes}
+                onChange={(e) => setEvalNotes(e.target.value)}
+                placeholder="Add any specific observations or rationale for the scores..."
+                className="input-field"
+                style={{ width: "100%", height: 80, resize: "vertical" }}
+              />
+            </div>
+            
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button 
+                onClick={submitEvaluation} 
+                disabled={submittingEval}
+                className="btn-primary" 
+                style={{ display: "flex", alignItems: "center", gap: 6 }}
+              >
+                {submittingEval ? "Submitting..." : <><CheckCircle size={14} /> Submit Evaluation</>}
+              </button>
+            </div>
+
+            {evaluations.length > 0 && (
+              <div style={{ marginTop: 24, paddingTop: 20, borderTop: "1px solid #e8e8e8" }}>
+                <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Past Evaluations</h4>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {evaluations.map((ev) => (
+                    <div key={ev.id} style={{ background: "#fafafa", border: "1px solid #e8e8e8", borderRadius: 8, padding: 12 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600 }}>{ev.judge_name || "Organizer"}</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span className="badge badge-info">{new Date(ev.created_at).toLocaleDateString()}</span>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: scoreColor(ev.total_score) }}>{ev.total_score} Total</span>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+                        {Object.entries(ev.scores || {}).map(([c, s]) => (
+                          <span key={c} style={{ fontSize: 11, background: "#eee", padding: "2px 6px", borderRadius: 4, color: "#555" }}>
+                            {c.charAt(0).toUpperCase() + c.slice(1)}: <strong style={{ color: scoreColor(s) }}>{s}</strong>
+                          </span>
+                        ))}
+                      </div>
+                      {ev.notes && <p style={{ fontSize: 12, color: "#666", marginTop: 8, fontStyle: "italic" }}>"{ev.notes}"</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

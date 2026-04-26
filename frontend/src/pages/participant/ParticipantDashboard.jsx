@@ -126,6 +126,11 @@ export default function ParticipantDashboard() {
                       <GitBranch size={10} /> {myTeam.github_repo ? "Linked" : "Not linked"}
                     </span>
                   </div>
+                  <div style={{ marginTop: 12, padding: "10px 14px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 12, color: "#334155" }}>
+                    <div style={{ fontWeight: 600, marginBottom: 4, color: "#0f172a" }}>VS Code Extension Config</div>
+                    <div>To link HackGuard, use Team Name: <span style={{ fontWeight: 700, fontFamily: "monospace", background: "#e2e8f0", padding: "2px 6px", borderRadius: 4 }}>{myTeam.name}</span></div>
+                    {myTeam.extension_key && <div style={{ marginTop: 6, fontSize: 11 }}>Extension Key: <span style={{ fontFamily: "monospace", color: "#64748b" }}>{myTeam.extension_key}</span></div>}
+                  </div>
                 </div>
               </div>
             ) : (
