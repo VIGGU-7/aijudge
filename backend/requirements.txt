@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+motor
+pymongo
+python-dotenv
+bcrypt
+PyJWT
+pydantic[email]
+python-multipart
+google-generativeai
+python-pptx
+PyPDF2
+httpx
+aiofiles
+reportlab
+faster-whisper
