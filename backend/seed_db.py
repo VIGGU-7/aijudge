@@ -23,6 +23,7 @@ async def seed():
     await db.viva_sessions.delete_many({})
     await db.evaluations.delete_many({})
     await db.plagiarism_reports.delete_many({})
+    await db.telemetry_logs.delete_many({})
 
     print("Creating Organizer...")
     org_pw = bcrypt.hashpw("password123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
@@ -80,14 +81,39 @@ async def seed():
         user_id = str(user_res.inserted_id)
 
         # Create team
+        ext_key = f"ext-key-{t_data['repo']}"
         team_res = await db.teams.insert_one({
             "name": t_data["name"],
             "hackathon_id": active_hack_id,
             "github_repo": f"https://github.com/example/{t_data['repo']}",
             "members": [{"user_id": user_id, "name": t_data["user"]}],
+            "extension_key": ext_key,
             "created_at": datetime.now(timezone.utc).isoformat()
         })
         team_id = str(team_res.inserted_id)
+
+        # Create Telemetry Logs for Neural Ninjas (Malpractice)
+        if t_data["name"] == "Neural Ninjas":
+            await db.telemetry_logs.insert_many([
+                {
+                    "team_id": team_id,
+                    "event_type": "malpractice_detected",
+                    "details": {"reason": "Massive copy-paste detected", "lines_pasted": 450, "file": "backend/auth.py"},
+                    "timestamp": (datetime.now(timezone.utc) - timedelta(minutes=120)).isoformat()
+                },
+                {
+                    "team_id": team_id,
+                    "event_type": "malpractice_detected",
+                    "details": {"reason": "Focus lost for extended period during active coding", "duration_minutes": 45},
+                    "timestamp": (datetime.now(timezone.utc) - timedelta(minutes=60)).isoformat()
+                },
+                {
+                    "team_id": team_id,
+                    "event_type": "telemetry_ping",
+                    "details": {"status": "active", "loc_written": 12},
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                }
+            ])
 
         # Create project info
         await db.project_info.insert_one({
